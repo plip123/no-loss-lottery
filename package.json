@@ -1,0 +1,42 @@
+{
+  "name": "hardhat-kit",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "hardhat test",
+    "compile": "hardhat compile",
+    "deploy:greeter": "hardhat deploy --tags Greeter",
+    "testnet:deploy:greeter": "hardhat deploy --tags Greeter --network rinkeby",
+    "deploy:swapper": "hardhat deploy --tags Swapper",
+    "upgrade:swapper": "hardhat deploy --tags SwapperV2",
+    "prettier": "prettier --write 'contracts/**/*.sol'"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
+    "@nomiclabs/hardhat-etherscan": "^2.1.1",
+    "@nomiclabs/hardhat-truffle5": "^2.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.1",
+    "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/test-helpers": "^0.5.10",
+    "chai": "^4.3.4",
+    "ethereum-waffle": "^3.4.0",
+    "ethers": "^5.4.6",
+    "hardhat-gas-reporter": "^1.0.4",
+    "hardhat": "^2.2.1",
+    "hardhat-deploy": "^0.8.6",
+    "prettier": "^2.2.1",
+    "prettier-plugin-solidity": "^1.0.0-beta.8",
+    "web3": "^1.3.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.1.0",
+    "@chainlink/contracts": "^0.2.1",
+    "@openzeppelin/contracts-upgradeable": "^4.1.0",
+    "@openzeppelin/hardhat-upgrades": "^1.9.0",
+    "dotenv": "^8.2.0"
+  }
+}
