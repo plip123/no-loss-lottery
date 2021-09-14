@@ -33,7 +33,7 @@ const printGas = async (tx) => {
   console.log("\tGas Used:", Number(receipt.gasUsed));
 };
 
-contract("Swapper", () => {
+describe("Swapper", () => {
   before(async function () {
     ({ deployer, feeRecipient, user } = await getNamedAccounts());
 

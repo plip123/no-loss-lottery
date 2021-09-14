@@ -20,10 +20,10 @@ module.exports = {
         blockNumber: 11589707,
       },
     },
-    rinkeby: {
-      url: `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
-      accounts: [process.env.RINKEBY_PRIVATE_KEY],
-    },
+    // rinkeby: {
+    //   url: `https://eth-rinkeby.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
+    //   accounts: [process.env.RINKEBY_PRIVATE_KEY],
+    // },
     // live: {
     //   url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
     //   accounts: [process.env.MAINNET_PRIVKEY],
@@ -38,7 +38,7 @@ module.exports = {
     user: 2,
   },
   solidity: {
-    version: "0.8.4",
+    version: "0.6.2",
     settings: {
       optimizer: {
         enabled: true,

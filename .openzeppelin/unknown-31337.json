@@ -1,0 +1,132 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [],
+  "impls": {
+    "b230e11f426c0fc1f1e2aa516ea75adba39515aea537f53a14a89dc71e7fc27d": {
+      "address": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      "txHash": "0x010c80fca35fb5f3455c78a5cfb1f1ce4321a88b67661358f84390d82a594d00",
+      "layout": {
+        "storage": [
+          {
+            "contract": "Initializable",
+            "label": "_initialized",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:25"
+          },
+          {
+            "contract": "Initializable",
+            "label": "_initializing",
+            "type": "t_bool",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/Initializable.sol:30"
+          },
+          {
+            "contract": "VRFConsumerBaseUpgradable",
+            "label": "LINK",
+            "type": "t_contract(LinkTokenInterface)142",
+            "src": "contracts/VRFConsumerBaseUpgradable.sol:47"
+          },
+          {
+            "contract": "VRFConsumerBaseUpgradable",
+            "label": "vrfCoordinator",
+            "type": "t_address",
+            "src": "contracts/VRFConsumerBaseUpgradable.sol:49"
+          },
+          {
+            "contract": "VRFConsumerBaseUpgradable",
+            "label": "nonces",
+            "type": "t_mapping(t_bytes32,t_uint256)",
+            "src": "contracts/VRFConsumerBaseUpgradable.sol:51"
+          },
+          {
+            "contract": "Lottery",
+            "label": "keyHash",
+            "type": "t_bytes32",
+            "src": "contracts/Lottery.sol:20"
+          },
+          {
+            "contract": "Lottery",
+            "label": "fee",
+            "type": "t_uint256",
+            "src": "contracts/Lottery.sol:21"
+          },
+          {
+            "contract": "Lottery",
+            "label": "feeVRF",
+            "type": "t_uint256",
+            "src": "contracts/Lottery.sol:22"
+          },
+          {
+            "contract": "Lottery",
+            "label": "randomResult",
+            "type": "t_uint256",
+            "src": "contracts/Lottery.sol:23"
+          },
+          {
+            "contract": "Lottery",
+            "label": "recipientAddr",
+            "type": "t_address_payable",
+            "src": "contracts/Lottery.sol:24"
+          },
+          {
+            "contract": "Lottery",
+            "label": "players",
+            "type": "t_array(t_struct(Player)1365_storage)dyn_storage",
+            "src": "contracts/Lottery.sol:25"
+          },
+          {
+            "contract": "Lottery",
+            "label": "currencies",
+            "type": "t_mapping(t_address,t_address)",
+            "src": "contracts/Lottery.sol:27"
+          }
+        ],
+        "types": {
+          "t_bytes32": {
+            "label": "bytes32"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_address_payable": {
+            "label": "address payable"
+          },
+          "t_array(t_struct(Player)1365_storage)dyn_storage": {
+            "label": "struct Lottery.Player[]"
+          },
+          "t_struct(Player)1365_storage": {
+            "label": "struct Lottery.Player",
+            "members": [
+              {
+                "label": "player",
+                "type": "t_address_payable"
+              },
+              {
+                "label": "token",
+                "type": "t_address"
+              },
+              {
+                "label": "amount",
+                "type": "t_uint256"
+              }
+            ]
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_mapping(t_address,t_address)": {
+            "label": "mapping(address => address)"
+          },
+          "t_contract(LinkTokenInterface)142": {
+            "label": "contract LinkTokenInterface"
+          },
+          "t_mapping(t_bytes32,t_uint256)": {
+            "label": "mapping(bytes32 => uint256)"
+          },
+          "t_bool": {
+            "label": "bool"
+          }
+        }
+      }
+    }
+  }
+}
