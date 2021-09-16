@@ -5,6 +5,7 @@ pragma solidity ^0.6.0;
 import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@chainlink/contracts/src/v0.6/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.6/VRFRequestIDBase.sol";
+import "hardhat/console.sol";
 
 abstract contract VRFConsumerBaseUpgradable is VRFRequestIDBase {
     using SafeMath for uint256;
@@ -52,7 +53,7 @@ abstract contract VRFConsumerBaseUpgradable is VRFRequestIDBase {
         private nonces;
 
     // replaced constructor with initializer <--
-    function initialize(address _vrfCoordinator, address _link) public {
+    function initializeVRF(address _vrfCoordinator, address _link) public {
         vrfCoordinator = _vrfCoordinator;
         LINK = LinkTokenInterface(_link);
     }
