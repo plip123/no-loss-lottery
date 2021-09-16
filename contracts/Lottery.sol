@@ -26,9 +26,9 @@ contract Lottery is
 
     struct Player {
         uint256 id;
-        address payable player;
+        address player;
         address token;
-        uint256 number;
+        bool winner;
     }
 
     IUniswapV2Router internal constant swapper =
@@ -36,9 +36,12 @@ contract Lottery is
     LotteryStatus public lotteryStatus;
     uint256 public lotteryId;
     uint256 internal fee;
+    uint256 internal lotteryBalance;
     uint256 public ticketCost;
-    address payable public recipientAddr;
+    address private lotteryAdmin;
+    address public recipientAddr;
     address internal poolAddress;
+    address internal tokenPoolAddress;
     Player[] public players;
 
     bytes32 internal keyHash;
@@ -50,11 +53,27 @@ contract Lottery is
     mapping(address => address) currencies;
     mapping(address => uint256) playerId;
 
-    event NewPlayer(address player);
+    event NewPlayer(address player, uint256 playerId, uint256 lotteryID);
+    event OpenLottery(uint256 id, LotteryStatus status, address tokenAddr);
+    event StartLottery(
+        uint256 id,
+        address poolAddr,
+        LotteryStatus status,
+        uint256 balance,
+        uint256 numPlayers
+    );
+    event CloseLottery(
+        uint256 id,
+        address winner,
+        LotteryStatus status,
+        uint256 numPlayers
+    );
 
     /**
      * Constructor
      * @param _recipient is a fee recipient
+     * @param _vrfCoordinator address of the vrf coordinator
+     * @param _ticketCost Lottery ticket cost
      */
     function initialize(
         address _recipient,
@@ -67,9 +86,11 @@ contract Lottery is
             0x514910771AF9Ca656af840dff83E8264EcF986CA // LINK Token
         );
 
-        recipientAddr = payable(_recipient);
+        recipientAddr = lotteryAdmin = _recipient;
         fee = uint256(5);
         ticketCost = _ticketCost;
+        lotteryId = 0;
+        lotteryStatus = LotteryStatus.CLOSE;
 
         feeVRF = 2 * 10**18; // 2 LINK (Varies by network)
         keyHash = 0xAA77729D3466CA35AE8D28B3BBAC7CC36A5031EFDC430821C02BC31A238AF445;
@@ -92,7 +113,11 @@ contract Lottery is
         // currencies[0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE] = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE; // ETH
     }
 
-    function buyTicket(address tokenAddr, uint256 _number) public {
+    /**
+     * The user will be able to buy tickets
+     * @param tokenAddr Token with which the ticket is to be purchased
+     */
+    function buyTicket(address tokenAddr) public {
         require(lotteryStatus == LotteryStatus.OPEN, "The lottery is closed");
         require(msg.sender != address(0), "Invalid user");
         require(tokenAddr == currencies[tokenAddr], "Currency is desactived");
@@ -101,10 +126,9 @@ contract Lottery is
             "Balance not enough"
         );
         require(
-            playerId[msg.sender] != lotteryId,
+            playerId[msg.sender] == 0,
             "You are participating in this lottery"
         );
-        require(_number > 0, "Invalid selected number");
 
         IERC20(tokenAddr).safeTransferFrom(
             msg.sender,
@@ -112,70 +136,145 @@ contract Lottery is
             ticketCost
         );
 
-        players.push(
-            Player(lotteryId, payable(msg.sender), tokenAddr, _number)
-        );
-        playerId[msg.sender] = players.length - 1;
+        players.push(Player(lotteryId, msg.sender, tokenAddr, false));
+        playerId[msg.sender] = players.length;
+
+        emit NewPlayer(msg.sender, playerId[msg.sender], lotteryId);
     }
 
-    function openLottery() public onlyOwner {
+    /**
+     * Lottery ticket purchase time begins
+     * @param _tokenAddr Address of the token to be used in the pool
+     */
+    function openLottery(address _tokenAddr) public isAdmin {
         require(lotteryStatus == LotteryStatus.CLOSE, "Lottery in progress");
-        lotteryId = 1;
-        lotteryStatus = LotteryStatus.OPEN;
-    }
-
-    function startLottery(address _tokenAddr, address _poolAddress)
-        public
-        onlyOwner
-    {
-        require(lotteryStatus == LotteryStatus.OPEN, "Lottery is not open");
-        require(players.length > 0, "Not enough players");
         require(_tokenAddr == currencies[_tokenAddr], "Currency is desactived");
-        poolAddress = _poolAddress;
-        lotteryStatus = LotteryStatus.STARTED;
-        address[] memory path = new address[](2);
-        path[1] = _tokenAddr;
+        tokenPoolAddress = _tokenAddr;
+        lotteryBalance = 0;
 
-        for (uint256 i; i < players.length; i++) {
-            path[0] = players[i].token;
-            swapper.swapExactTokensForTokens(
-                ticketCost,
-                1,
-                path,
-                address(this),
-                block.timestamp + 1
-            );
+        for (uint256 i = 0; i < players.length; i++) {
+            playerId[players[i].player] = 0;
         }
 
+        delete players;
+
+        lotteryId += 1;
+        lotteryStatus = LotteryStatus.OPEN;
+        emit OpenLottery(lotteryId, lotteryStatus, tokenPoolAddress);
+    }
+
+    /**
+     * Initiates time to generate interest
+     * @param _poolAddress Address of the pool where interest will be earned
+     */
+    function startLottery(address _poolAddress) public isAdmin {
+        require(lotteryStatus == LotteryStatus.OPEN, "Lottery is not open");
+        require(players.length > 0, "Not enough players");
+        poolAddress = _poolAddress;
+        address[] memory path = new address[](2);
+        path[1] = tokenPoolAddress;
+        address[] memory curr = new address[](5);
+        curr[0] = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // DAI
+        curr[1] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
+        curr[2] = 0xdAC17F958D2ee523a2206206994597C13D831ec7; // USDT
+        curr[3] = 0x0000000000085d4780B73119b644AE5ecd22b376; // TUSD
+        curr[4] = 0x4Fabb145d64652a948d72533023f6E7A623C7C53; // BUSD
+
+        lotteryStatus = LotteryStatus.STARTED;
+        uint256 balance = 0;
+        for (uint256 i = 0; i < 5; i++) {
+            balance = IERC20(curr[i]).balanceOf(address(this));
+            if (balance > 0 && curr[i] != tokenPoolAddress) {
+                path[0] = curr[i];
+                swapper.swapExactTokensForTokens(
+                    balance,
+                    1,
+                    path,
+                    address(this),
+                    block.timestamp + 1
+                );
+            }
+        }
+
+        lotteryBalance = IERC20(tokenPoolAddress).balanceOf(address(this));
+
         // Aave Pool
-        IERC20(_tokenAddr).approve(
-            poolAddress,
-            IERC20(_tokenAddr).balanceOf(address(this))
-        );
+        IERC20(tokenPoolAddress).approve(poolAddress, lotteryBalance);
 
         ILendingPool(poolAddress).deposit(
-            _tokenAddr,
-            IERC20(_tokenAddr).balanceOf(address(this)),
+            tokenPoolAddress,
+            lotteryBalance,
             address(this),
             0
         );
+
+        emit StartLottery(
+            lotteryId,
+            _poolAddress,
+            lotteryStatus,
+            lotteryBalance,
+            players.length
+        );
     }
 
-    function closeLottery() public onlyOwner {
+    /**
+     * Closes the lottery, allocates the funds to the winner and returns the
+     * cost of the tickets to the losing users.
+     */
+    function closeLottery() public isAdmin {
         require(
             lotteryStatus == LotteryStatus.STARTED,
             "Lottery is not started"
         );
         require(winnerNumber > 0, "RANDOM_NUMBER_ERROR");
 
+        uint256 idWin = winnerNumber.mod(players.length);
+        Player storage player = players[idWin];
+        player.winner = true;
+
         lotteryStatus = LotteryStatus.CLOSE;
+
+        emit CloseLottery(
+            lotteryId,
+            player.player,
+            lotteryStatus,
+            players.length
+        );
     }
 
-    function getBalance() public view returns (uint256) {
-        return address(this).balance;
+    /**
+     * The player can withdraw his/her lottery funds
+     */
+    function claim() public {
+        require(lotteryStatus == LotteryStatus.CLOSE, "Lottery is not close");
+        require(msg.sender != address(0), "Invalid user");
+        uint256 id = playerId[msg.sender] - 1;
+
+        ILendingPool(poolAddress).withdraw(
+            tokenPoolAddress,
+            lotteryBalance,
+            address(this)
+        );
+
+        if (!players[id].winner) {
+            IERC20(tokenPoolAddress).safeTransferFrom(
+                address(this),
+                msg.sender,
+                ticketCost
+            );
+        } else {
+            IERC20(tokenPoolAddress).safeTransferFrom(
+                address(this),
+                msg.sender,
+                ticketCost
+            );
+        }
     }
 
-    function getRandomNumber() public returns (bytes32 requestId) {
+    /**
+     * Random Number Generator with ChainLink
+     */
+    function getRandomNumber() public isAdmin returns (bytes32 requestId) {
         require(
             LINK.balanceOf(address(this)) >= feeVRF,
             "Not enough LINK - fill contract with faucet"
@@ -192,5 +291,10 @@ contract Lottery is
     {
         require(msg.sender == vrfCoordinator, "Only permitted by Coordinator");
         winnerNumber = randomness;
+    }
+
+    modifier isAdmin() {
+        require(msg.sender == lotteryAdmin, "You are not the admin");
+        _;
     }
 }

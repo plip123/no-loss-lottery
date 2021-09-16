@@ -7,7 +7,7 @@
       "hash": "0x2cbc264788ada9388d2429a9cb85c67ab431825342986a4f132457242a3da46b",
       "type": 2,
       "accessList": [],
-      "blockHash": "0x8592e60e13b2a43c1deeca5bd8f1b948562fd1d0552616455e6ff7f4bfc0aa14",
+      "blockHash": "0xc67c40dd39e90f401c828e75e4a0a741dbe68e9950d2782f9504a7e5a92b1ddb",
       "blockNumber": 11589709,
       "transactionIndex": 0,
       "confirmations": 1,
@@ -55,7 +55,7 @@
     },
     {
       "address": "0x610178dA211FEF7D417bC0e6FeD39F05609AD788",
-      "txHash": "0x10f86406d025c030dd6fd7fac94eb725295d54456576de8e6bb9d7c5783b79f9",
+      "txHash": "0x478dc8457b3766d3957d4f9bd5b6c810a6d4a3c4cca420fed125ab71e6d05c5f",
       "kind": "transparent"
     }
   ],
@@ -229,9 +229,9 @@
         }
       }
     },
-    "0eb14bb49ce77d1c54902abb6860edce78d7d08a4d95db0c45da932d8af5b7a2": {
+    "e152664f55324fefe5635501a898d3c79ff25054c73560ff5a050f1c858cb067": {
       "address": "0x8A791620dd6260079BF849Dc5567aDC3F2FdC318",
-      "txHash": "0x444d8f59585ab62ce1e241bf8844ef3f42521ca36a8011f36df66076011eaa9c",
+      "txHash": "0x3cb323943276bdcedb7b3f970fa2ac10a18e617227498aeaf7eccadb63be44dc",
       "layout": {
         "storage": [
           {
@@ -302,69 +302,87 @@
           },
           {
             "contract": "Lottery",
-            "label": "ticketCost",
+            "label": "lotteryBalance",
             "type": "t_uint256",
             "src": "contracts/Lottery.sol:39"
           },
           {
             "contract": "Lottery",
-            "label": "recipientAddr",
-            "type": "t_address_payable",
+            "label": "ticketCost",
+            "type": "t_uint256",
             "src": "contracts/Lottery.sol:40"
           },
           {
             "contract": "Lottery",
-            "label": "poolAddress",
+            "label": "lotteryAdmin",
             "type": "t_address",
             "src": "contracts/Lottery.sol:41"
           },
           {
             "contract": "Lottery",
+            "label": "recipientAddr",
+            "type": "t_address",
+            "src": "contracts/Lottery.sol:42"
+          },
+          {
+            "contract": "Lottery",
+            "label": "poolAddress",
+            "type": "t_address",
+            "src": "contracts/Lottery.sol:43"
+          },
+          {
+            "contract": "Lottery",
+            "label": "tokenPoolAddress",
+            "type": "t_address",
+            "src": "contracts/Lottery.sol:44"
+          },
+          {
+            "contract": "Lottery",
             "label": "players",
             "type": "t_array(t_struct(Player)1983_storage)dyn_storage",
-            "src": "contracts/Lottery.sol:42"
+            "src": "contracts/Lottery.sol:45"
           },
           {
             "contract": "Lottery",
             "label": "keyHash",
             "type": "t_bytes32",
-            "src": "contracts/Lottery.sol:44"
+            "src": "contracts/Lottery.sol:47"
           },
           {
             "contract": "Lottery",
             "label": "feeVRF",
             "type": "t_uint256",
-            "src": "contracts/Lottery.sol:45"
+            "src": "contracts/Lottery.sol:48"
           },
           {
             "contract": "Lottery",
             "label": "winnerNumber",
             "type": "t_uint256",
-            "src": "contracts/Lottery.sol:46"
+            "src": "contracts/Lottery.sol:49"
           },
           {
             "contract": "Lottery",
             "label": "vrfCoordinator",
             "type": "t_address",
-            "src": "contracts/Lottery.sol:47"
+            "src": "contracts/Lottery.sol:50"
           },
           {
             "contract": "Lottery",
             "label": "lotteryRecord",
             "type": "t_mapping(t_bytes32,t_uint256)",
-            "src": "contracts/Lottery.sol:49"
+            "src": "contracts/Lottery.sol:52"
           },
           {
             "contract": "Lottery",
             "label": "currencies",
             "type": "t_mapping(t_address,t_address)",
-            "src": "contracts/Lottery.sol:50"
+            "src": "contracts/Lottery.sol:53"
           },
           {
             "contract": "Lottery",
             "label": "playerId",
             "type": "t_mapping(t_address,t_uint256)",
-            "src": "contracts/Lottery.sol:51"
+            "src": "contracts/Lottery.sol:54"
           }
         ],
         "types": {
@@ -378,9 +396,6 @@
           },
           "t_uint256": {
             "label": "uint256"
-          },
-          "t_address_payable": {
-            "label": "address payable"
           },
           "t_address": {
             "label": "address"
@@ -397,17 +412,20 @@
               },
               {
                 "label": "player",
-                "type": "t_address_payable"
+                "type": "t_address"
               },
               {
                 "label": "token",
                 "type": "t_address"
               },
               {
-                "label": "number",
-                "type": "t_uint256"
+                "label": "winner",
+                "type": "t_bool"
               }
             ]
+          },
+          "t_bool": {
+            "label": "bool"
           },
           "t_bytes32": {
             "label": "bytes32"
@@ -426,9 +444,6 @@
           },
           "t_array(t_uint256)50_storage": {
             "label": "uint256[50]"
-          },
-          "t_bool": {
-            "label": "bool"
           },
           "t_contract(LinkTokenInterface)268": {
             "label": "contract LinkTokenInterface"

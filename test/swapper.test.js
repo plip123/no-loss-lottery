@@ -63,7 +63,7 @@ describe("Swapper", () => {
       .connect(userSigner)
       .swap(tokens, distribution, { value: toWei(1) });
 
-    await printGas(tx);
+    //await printGas(tx);
 
     const balanceDAI = await dai.balanceOf(user);
     const balanceLINK = await link.balanceOf(user);
@@ -110,7 +110,7 @@ describe("Swapper", () => {
           amount
         )}&protocols=UNISWAP_V2,BALANCER`
       );
-      console.log(`\tSwap WETH to ${token} in ${data.protocols[0][0][0].name}`);
+      //console.log(`\tSwap WETH to ${token} in ${data.protocols[0][0][0].name}`);
 
       let swapData;
 
@@ -135,7 +135,7 @@ describe("Swapper", () => {
       value: toWei(1),
     });
 
-    await printGas(tx);
+    //await printGas(tx);
 
     const balanceDAI = await dai.balanceOf(user);
     const balanceLINK = await link.balanceOf(user);

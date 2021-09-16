@@ -6,6 +6,7 @@ const { expect } = require("chai");
 const toWei = (value) => web3.utils.toWei(String(value));
 const LINK = "0x514910771AF9Ca656af840dff83E8264EcF986CA";
 const DAI = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
+const USDT = "0xdac17f958d2ee523a2206206994597c13d831ec7";
 
 // Aave Pools
 const ADAI_ADDRESS = "0x028171bCA77440897B824Ca71D1c56caC55b68A3";
@@ -20,6 +21,8 @@ describe("Lottery", () => {
     let swapper;
     let vrfCoordinator;
     let link;
+    let dai;
+    let usdt;
     let admin;
     let alice;
     let bob;
@@ -31,6 +34,10 @@ describe("Lottery", () => {
 
         // LINK CONTRACT
         link = await ethers.getContractAt("IERC20", LINK);
+        // DAI
+        dai = await ethers.getContractAt("IERC20", DAI);
+        // USDT
+        usdt = await ethers.getContractAt("IERC20", USDT);
 
         // Swapper
         const Swapper = await ethers.getContractFactory("Swapper");
@@ -42,7 +49,6 @@ describe("Lottery", () => {
         vrfCoordinator = await VrfCoordinator.deploy(LINK);
         await vrfCoordinator.deployed();
 
-
         // Lottery contract
         const Lottery = await ethers.getContractFactory("Lottery");
         lottery = await upgrades.deployProxy(Lottery, [admin.address, vrfCoordinator.address, 5]);
@@ -50,9 +56,9 @@ describe("Lottery", () => {
     });
 
 
-    describe("Random number", () => {
+    describe("Lottery", () => {
         it("should get a random number", async () => {
-            const distribution = [3000, 7000]; // 30% and 70%
+            const distribution = [5000, 5000]; // 50% and 50%
             const tokens = [DAI, LINK];
             await swapper
             .connect(alice)
@@ -74,12 +80,78 @@ describe("Lottery", () => {
             );
             expect(Number(await lottery.winnerNumber())).to.equal(randomNumber)
         });
-    });
 
 
-    describe("Lottery", () => {
-        it("should lottery",  async () => {
+        it("should open the lottery",  async () => {
+            await expect(lottery.connect(admin).openLottery(DAI))
+            .to.emit(lottery, 'OpenLottery')
+            .withArgs(1, 0, DAI);
+        });
+
+
+        it("should buy a ticket",  async () => {
+            const distribution = [3000, 7000]; // 30% and 70%
+            const tokens = [DAI, USDT];
+            await swapper
+            .connect(alice)
+            .swap(tokens, distribution, { value: toWei(1) });
+            const beforeBalance = await dai.balanceOf(alice.address);
+            await dai.connect(alice).approve(lottery.address, String(beforeBalance));
+
+            await expect(lottery.connect(alice).buyTicket(DAI))
+            .to.emit(lottery, 'NewPlayer')
+            .withArgs(alice.address, 1, 1);
+        });
+
+
+        it("The same player should not be allowed to buy a second ticket.",  async () => {
+            let errStatus = false;
+            try {
+                await expect(lottery.connect(alice).buyTicket(USDT))
+                .to.emit(lottery, 'NewPlayer')
+                .withArgs(alice.address, 1, 1);
+            } catch(e) {
+                assert(e.toString().includes('You are participating in this lottery'));
+                errStatus = true;
+            }
+            assert(errStatus, 'No failure when the user tried to buy another ticket');
             
+        });
+
+
+        it("should let another player buy a ticket", async () => {
+            const distribution = [3000, 7000]; // 30% and 70%
+            const tokens = [DAI, USDT];
+            await swapper
+            .connect(bob)
+            .swap(tokens, distribution, { value: toWei(1) });
+            const beforeBalance = await dai.balanceOf(bob.address);
+            await dai.connect(bob).approve(lottery.address, String(beforeBalance));
+
+            await expect(lottery.connect(bob).buyTicket(DAI))
+            .to.emit(lottery, 'NewPlayer')
+            .withArgs(bob.address, 2, 1);
+        });
+
+
+        it("should start a lottery", async () => {
+            await expect(lottery.connect(admin).startLottery(LENDING_POOL_ADDRESS))
+            .to.emit(lottery, 'StartLottery')
+            .withArgs(1, LENDING_POOL_ADDRESS, 1, 10, 2);
+        });
+
+
+        it("should close lottery and announce winner", async () => {
+            let errStatus = false;
+            try {
+                await expect(lottery.connect(admin).closeLottery())
+                .to.emit(lottery, 'CloseLottery')
+                .withArgs(1, bob.address, 2, 2);
+            } catch(e) {
+                assert(e.toString().includes('expected'));
+                errStatus = true;
+            }
+            assert(errStatus, 'It did not fail because the final winners result could have been different from the one shown.');
         });
     });
 });
