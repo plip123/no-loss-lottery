@@ -135,6 +135,13 @@ describe("Lottery", () => {
 
 
         it("should start a lottery", async () => {
+            const block = await ethers.provider.getBlock();
+            const days = 2 * 24 * 60 * 60;
+
+            // 2 days later
+            await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp + days])
+            await ethers.provider.send("evm_mine");
+
             await expect(lottery.connect(admin).startLottery(LENDING_POOL_ADDRESS))
             .to.emit(lottery, 'StartLottery')
             .withArgs(1, LENDING_POOL_ADDRESS, 1, 10, 2);
@@ -142,6 +149,13 @@ describe("Lottery", () => {
 
 
         it("should close lottery and announce winner", async () => {
+            const block = await ethers.provider.getBlock();
+            const days = 5 * 24 * 60 * 60;
+
+            // 5 days later
+            await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp + days])
+            await ethers.provider.send("evm_mine");
+
             let errStatus = false;
             try {
                 await expect(lottery.connect(admin).closeLottery())

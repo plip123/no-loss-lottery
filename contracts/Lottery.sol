@@ -36,6 +36,7 @@ contract Lottery is
     LotteryStatus public lotteryStatus;
     uint256 public lotteryId;
     uint256 internal fee;
+    uint256 internal lotteryTime;
     uint256 internal lotteryBalance;
     uint256 public ticketCost;
     address private lotteryAdmin;
@@ -86,8 +87,10 @@ contract Lottery is
             0x514910771AF9Ca656af840dff83E8264EcF986CA // LINK Token
         );
 
-        recipientAddr = lotteryAdmin = _recipient;
-        fee = uint256(5);
+        lotteryAdmin = msg.sender;
+        recipientAddr = _recipient;
+        lotteryTime = 0;
+        fee = uint256(5).mul(100);
         ticketCost = _ticketCost;
         lotteryId = 0;
         lotteryStatus = LotteryStatus.CLOSE;
@@ -147,7 +150,10 @@ contract Lottery is
      * @param _tokenAddr Address of the token to be used in the pool
      */
     function openLottery(address _tokenAddr) public isAdmin {
-        require(lotteryStatus == LotteryStatus.CLOSE, "Lottery in progress");
+        require(
+            lotteryStatus == LotteryStatus.CLOSE && lotteryTime == 0,
+            "Lottery in progress"
+        );
         require(_tokenAddr == currencies[_tokenAddr], "Currency is desactived");
         tokenPoolAddress = _tokenAddr;
         lotteryBalance = 0;
@@ -159,6 +165,7 @@ contract Lottery is
         delete players;
 
         lotteryId += 1;
+        lotteryTime = block.timestamp + 2 days;
         lotteryStatus = LotteryStatus.OPEN;
         emit OpenLottery(lotteryId, lotteryStatus, tokenPoolAddress);
     }
@@ -168,7 +175,11 @@ contract Lottery is
      * @param _poolAddress Address of the pool where interest will be earned
      */
     function startLottery(address _poolAddress) public isAdmin {
-        require(lotteryStatus == LotteryStatus.OPEN, "Lottery is not open");
+        require(
+            lotteryStatus == LotteryStatus.OPEN &&
+                lotteryTime < block.timestamp,
+            "Lottery is not open"
+        );
         require(players.length > 0, "Not enough players");
         poolAddress = _poolAddress;
         address[] memory path = new address[](2);
@@ -180,7 +191,9 @@ contract Lottery is
         curr[3] = 0x0000000000085d4780B73119b644AE5ecd22b376; // TUSD
         curr[4] = 0x4Fabb145d64652a948d72533023f6E7A623C7C53; // BUSD
 
+        lotteryTime = block.timestamp + 5 days;
         lotteryStatus = LotteryStatus.STARTED;
+
         uint256 balance = 0;
         for (uint256 i = 0; i < 5; i++) {
             balance = IERC20(curr[i]).balanceOf(address(this));
@@ -223,7 +236,8 @@ contract Lottery is
      */
     function closeLottery() public isAdmin {
         require(
-            lotteryStatus == LotteryStatus.STARTED,
+            lotteryStatus == LotteryStatus.STARTED &&
+                lotteryTime < block.timestamp,
             "Lottery is not started"
         );
         require(winnerNumber > 0, "RANDOM_NUMBER_ERROR");
@@ -232,6 +246,7 @@ contract Lottery is
         Player storage player = players[idWin];
         player.winner = true;
 
+        lotteryTime = 0;
         lotteryStatus = LotteryStatus.CLOSE;
 
         emit CloseLottery(
