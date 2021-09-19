@@ -24,25 +24,31 @@ contract Lottery is
         CLOSE
     }
 
+    struct MyLottery {
+        uint256 id;
+        uint256 ticketCost;
+        uint256 fee;
+        address poolAddress;
+        address tokenPoolAddress;
+        uint256 lastPrize;
+        address winner;
+        bool isClose;
+    }
+
     struct Player {
         uint256 id;
         address player;
         address token;
-        bool winner;
     }
 
     IUniswapV2Router internal constant swapper =
         IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     LotteryStatus public lotteryStatus;
     uint256 public lotteryId;
-    uint256 internal fee;
     uint256 internal lotteryTime;
     uint256 internal lotteryBalance;
-    uint256 public ticketCost;
     address private lotteryAdmin;
     address public recipientAddr;
-    address internal poolAddress;
-    address internal tokenPoolAddress;
     Player[] public players;
 
     bytes32 internal keyHash;
@@ -50,15 +56,20 @@ contract Lottery is
     uint256 public winnerNumber;
     address private vrfCoordinator;
 
-    mapping(bytes32 => uint256) lotteryRecord;
     mapping(address => address) currencies;
     mapping(address => uint256) playerId;
+    mapping(uint256 => Player[]) lotteryRecord;
+    mapping(uint256 => MyLottery) lotteries;
 
-    event NewPlayer(address player, uint256 playerId, uint256 lotteryID);
-    event OpenLottery(uint256 id, LotteryStatus status, address tokenAddr);
+    event NewPlayer(address player, uint256 ticketId, uint256 lotteryID);
+    event OpenLottery(
+        uint256 id,
+        LotteryStatus status,
+        address tokenAddr,
+        uint256 ticketCost
+    );
     event StartLottery(
         uint256 id,
-        address poolAddr,
         LotteryStatus status,
         uint256 balance,
         uint256 numPlayers
@@ -74,13 +85,11 @@ contract Lottery is
      * Constructor
      * @param _recipient is a fee recipient
      * @param _vrfCoordinator address of the vrf coordinator
-     * @param _ticketCost Lottery ticket cost
      */
-    function initialize(
-        address _recipient,
-        address _vrfCoordinator,
-        uint256 _ticketCost
-    ) public initializer {
+    function initialize(address _recipient, address _vrfCoordinator)
+        public
+        initializer
+    {
         vrfCoordinator = _vrfCoordinator;
         VRFConsumerBaseUpgradable.initializeVRF(
             vrfCoordinator, // VRF Coordinator
@@ -90,9 +99,6 @@ contract Lottery is
         lotteryAdmin = msg.sender;
         recipientAddr = _recipient;
         lotteryTime = 0;
-        fee = uint256(5).mul(100);
-        ticketCost = _ticketCost;
-        lotteryId = 0;
         lotteryStatus = LotteryStatus.CLOSE;
 
         feeVRF = 2 * 10**18; // 2 LINK (Varies by network)
@@ -125,7 +131,8 @@ contract Lottery is
         require(msg.sender != address(0), "Invalid user");
         require(tokenAddr == currencies[tokenAddr], "Currency is desactived");
         require(
-            IERC20(tokenAddr).balanceOf(msg.sender) >= ticketCost,
+            IERC20(tokenAddr).balanceOf(msg.sender) >=
+                lotteries[lotteryId].ticketCost,
             "Balance not enough"
         );
         require(
@@ -136,10 +143,10 @@ contract Lottery is
         IERC20(tokenAddr).safeTransferFrom(
             msg.sender,
             address(this),
-            ticketCost
+            lotteries[lotteryId].ticketCost
         );
 
-        players.push(Player(lotteryId, msg.sender, tokenAddr, false));
+        players.push(Player(lotteryId, msg.sender, tokenAddr));
         playerId[msg.sender] = players.length;
 
         emit NewPlayer(msg.sender, playerId[msg.sender], lotteryId);
@@ -148,14 +155,19 @@ contract Lottery is
     /**
      * Lottery ticket purchase time begins
      * @param _tokenAddr Address of the token to be used in the pool
+     * @param _poolAddress Address of the pool where interest will be earned
+     * @param _ticketCost Lottery ticket cost
      */
-    function openLottery(address _tokenAddr) public isAdmin {
+    function openLottery(
+        address _tokenAddr,
+        address _poolAddress,
+        uint256 _ticketCost
+    ) public isAdmin {
         require(
             lotteryStatus == LotteryStatus.CLOSE && lotteryTime == 0,
             "Lottery in progress"
         );
         require(_tokenAddr == currencies[_tokenAddr], "Currency is desactived");
-        tokenPoolAddress = _tokenAddr;
         lotteryBalance = 0;
 
         for (uint256 i = 0; i < players.length; i++) {
@@ -163,27 +175,40 @@ contract Lottery is
         }
 
         delete players;
-
+        console.log(block.timestamp);
         lotteryId += 1;
+        lotteries[lotteryId] = MyLottery(
+            lotteryId,
+            _ticketCost,
+            5,
+            _poolAddress,
+            _tokenAddr,
+            0,
+            address(0),
+            false
+        );
         lotteryTime = block.timestamp + 2 days;
         lotteryStatus = LotteryStatus.OPEN;
-        emit OpenLottery(lotteryId, lotteryStatus, tokenPoolAddress);
+        emit OpenLottery(
+            lotteryId,
+            lotteryStatus,
+            lotteries[lotteryId].tokenPoolAddress,
+            _ticketCost
+        );
     }
 
     /**
      * Initiates time to generate interest
-     * @param _poolAddress Address of the pool where interest will be earned
      */
-    function startLottery(address _poolAddress) public isAdmin {
+    function startLottery() public isAdmin {
         require(
             lotteryStatus == LotteryStatus.OPEN &&
                 lotteryTime < block.timestamp,
             "Lottery is not open"
         );
         require(players.length > 0, "Not enough players");
-        poolAddress = _poolAddress;
         address[] memory path = new address[](2);
-        path[1] = tokenPoolAddress;
+        path[1] = lotteries[lotteryId].tokenPoolAddress;
         address[] memory curr = new address[](5);
         curr[0] = 0x6B175474E89094C44Da98b954EedeAC495271d0F; // DAI
         curr[1] = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48; // USDC
@@ -197,7 +222,9 @@ contract Lottery is
         uint256 balance = 0;
         for (uint256 i = 0; i < 5; i++) {
             balance = IERC20(curr[i]).balanceOf(address(this));
-            if (balance > 0 && curr[i] != tokenPoolAddress) {
+            if (
+                balance > 0 && curr[i] != lotteries[lotteryId].tokenPoolAddress
+            ) {
                 path[0] = curr[i];
                 swapper.swapExactTokensForTokens(
                     balance,
@@ -209,21 +236,30 @@ contract Lottery is
             }
         }
 
-        lotteryBalance = IERC20(tokenPoolAddress).balanceOf(address(this));
+        lotteryBalance = IERC20(lotteries[lotteryId].tokenPoolAddress)
+            .balanceOf(address(this));
 
         // Aave Pool
-        IERC20(tokenPoolAddress).approve(poolAddress, lotteryBalance);
+        IERC20(lotteries[lotteryId].tokenPoolAddress).approve(
+            lotteries[lotteryId].poolAddress,
+            lotteryBalance
+        );
 
-        ILendingPool(poolAddress).deposit(
-            tokenPoolAddress,
+        ILendingPool(lotteries[lotteryId].poolAddress).deposit(
+            lotteries[lotteryId].tokenPoolAddress,
             lotteryBalance,
             address(this),
             0
         );
-
+        console.log(block.timestamp);
+        console.log(
+            "Balance",
+            IERC20(0x028171bCA77440897B824Ca71D1c56caC55b68A3).balanceOf(
+                address(this)
+            )
+        );
         emit StartLottery(
             lotteryId,
-            _poolAddress,
             lotteryStatus,
             lotteryBalance,
             players.length
@@ -242,12 +278,37 @@ contract Lottery is
         );
         require(winnerNumber > 0, "RANDOM_NUMBER_ERROR");
 
-        uint256 idWin = winnerNumber.mod(players.length);
-        Player storage player = players[idWin];
-        player.winner = true;
+        Player memory player = players[winnerNumber.mod(players.length)];
+        MyLottery storage lott = lotteries[lotteryId];
+        lott.winner = player.player;
+        lotteryRecord[lotteryId] = players;
 
         lotteryTime = 0;
         lotteryStatus = LotteryStatus.CLOSE;
+        lott.isClose = true;
+
+        console.log(
+            "Balance Withdraw",
+            IERC20(0x028171bCA77440897B824Ca71D1c56caC55b68A3).balanceOf(
+                address(this)
+            )
+        );
+
+        uint256 balancePool = ILendingPool(lott.poolAddress).withdraw(
+            lott.tokenPoolAddress,
+            ~uint256(0), //lotteryBalance,
+            address(this)
+        );
+
+        uint256 interests = balancePool.sub(lotteryBalance);
+        uint256 lastFee = interests.mul(lott.fee).div(100);
+        lott.lastPrize = interests.sub(lastFee);
+
+        IERC20(lott.tokenPoolAddress).transferFrom(
+            address(this),
+            recipientAddr,
+            lastFee
+        );
 
         emit CloseLottery(
             lotteryId,
@@ -259,29 +320,30 @@ contract Lottery is
 
     /**
      * The player can withdraw his/her lottery funds
+     * @param _lotteryId Lottery number to which the funds are to be claimed
+     * @param _ticketId Ticket number to which funds are to be claimed
      */
-    function claim() public {
-        require(lotteryStatus == LotteryStatus.CLOSE, "Lottery is not close");
+    function claim(uint256 _lotteryId, uint256 _ticketId) public {
+        require(lotteries[_lotteryId].isClose, "Lottery is not close");
         require(msg.sender != address(0), "Invalid user");
-        uint256 id = playerId[msg.sender] - 1;
 
-        ILendingPool(poolAddress).withdraw(
-            tokenPoolAddress,
-            lotteryBalance,
-            address(this)
-        );
+        Player memory player = lotteryRecord[_lotteryId][_ticketId.sub(1)];
 
-        if (!players[id].winner) {
-            IERC20(tokenPoolAddress).safeTransferFrom(
+        require(msg.sender == player.player, "Invalid user ticket");
+        console.log(block.timestamp);
+
+        if (msg.sender != lotteries[_lotteryId].winner) {
+            IERC20(lotteries[_lotteryId].tokenPoolAddress).safeTransferFrom(
                 address(this),
                 msg.sender,
-                ticketCost
+                lotteries[_lotteryId].ticketCost
             );
         } else {
-            IERC20(tokenPoolAddress).safeTransferFrom(
+            IERC20(lotteries[_lotteryId].tokenPoolAddress).safeTransferFrom(
                 address(this),
                 msg.sender,
-                ticketCost
+                lotteries[_lotteryId].ticketCost +
+                    lotteries[_lotteryId].lastPrize
             );
         }
     }

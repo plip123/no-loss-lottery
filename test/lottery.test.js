@@ -51,7 +51,7 @@ describe("Lottery", () => {
 
         // Lottery contract
         const Lottery = await ethers.getContractFactory("Lottery");
-        lottery = await upgrades.deployProxy(Lottery, [admin.address, vrfCoordinator.address, 5]);
+        lottery = await upgrades.deployProxy(Lottery, [admin.address, vrfCoordinator.address]);
         await lottery.deployed();
     });
 
@@ -83,9 +83,9 @@ describe("Lottery", () => {
 
 
         it("should open the lottery",  async () => {
-            await expect(lottery.connect(admin).openLottery(DAI))
+            await expect(lottery.connect(admin).openLottery(DAI, LENDING_POOL_ADDRESS, 5))
             .to.emit(lottery, 'OpenLottery')
-            .withArgs(1, 0, DAI);
+            .withArgs(1, 0, DAI, 5);
         });
 
 
@@ -136,36 +136,49 @@ describe("Lottery", () => {
 
         it("should start a lottery", async () => {
             const block = await ethers.provider.getBlock();
-            const days = 2 * 24 * 60 * 60;
+            const days = 24 * 60 * 60;
 
             // 2 days later
-            await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp + days])
-            await ethers.provider.send("evm_mine");
-
-            await expect(lottery.connect(admin).startLottery(LENDING_POOL_ADDRESS))
+            // await ethers.provider.send("evm_increaseTime", [days])
+            // await ethers.provider.send("evm_mine");
+            for (let i = 0; i < 2; i++) {
+                await ethers.provider.send("evm_increaseTime", [days])
+                await ethers.provider.send("evm_mine");
+            }
+            
+            await expect(lottery.connect(admin).startLottery())
             .to.emit(lottery, 'StartLottery')
-            .withArgs(1, LENDING_POOL_ADDRESS, 1, 10, 2);
+            .withArgs(1, 1, 10, 2);
         });
 
 
         it("should close lottery and announce winner", async () => {
             const block = await ethers.provider.getBlock();
-            const days = 5 * 24 * 60 * 60;
+            const days = 24 * 60 * 60;
 
             // 5 days later
-            await ethers.provider.send("evm_setNextBlockTimestamp", [block.timestamp + days])
-            await ethers.provider.send("evm_mine");
+            // await ethers.provider.send("evm_increaseTime", [days])
+            // await ethers.provider.send("evm_mine");
+            for (let i = 0; i < 5; i++) {
+                await ethers.provider.send("evm_increaseTime", [days])
+                await ethers.provider.send("evm_mine");
+            }
 
             let errStatus = false;
             try {
                 await expect(lottery.connect(admin).closeLottery())
                 .to.emit(lottery, 'CloseLottery')
-                .withArgs(1, bob.address, 2, 2);
+                .withArgs(1, alice.address, 2, 2);
             } catch(e) {
                 assert(e.toString().includes('expected'));
                 errStatus = true;
             }
             assert(errStatus, 'It did not fail because the final winners result could have been different from the one shown.');
+        });
+
+
+        it("should claim the prize", async () => {
+            await lottery.connect(bob).claim(1,2);
         });
     });
 });
