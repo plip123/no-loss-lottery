@@ -39,6 +39,7 @@ contract Lottery is
         uint256 id;
         address player;
         address token;
+        bool claim;
     }
 
     IUniswapV2Router internal constant swapper =
@@ -146,7 +147,7 @@ contract Lottery is
             lotteries[lotteryId].ticketCost
         );
 
-        players.push(Player(lotteryId, msg.sender, tokenAddr));
+        players.push(Player(lotteryId, msg.sender, tokenAddr, false));
         playerId[msg.sender] = players.length;
 
         emit NewPlayer(msg.sender, playerId[msg.sender], lotteryId);
@@ -175,7 +176,6 @@ contract Lottery is
         }
 
         delete players;
-        console.log(block.timestamp);
         lotteryId += 1;
         lotteries[lotteryId] = MyLottery(
             lotteryId,
@@ -204,9 +204,9 @@ contract Lottery is
         require(
             lotteryStatus == LotteryStatus.OPEN &&
                 lotteryTime < block.timestamp,
-            "Lottery is not open"
+            "Not applicable to start"
         );
-        require(players.length > 0, "Not enough players");
+        require(players.length > 1, "Not enough players");
         address[] memory path = new address[](2);
         path[1] = lotteries[lotteryId].tokenPoolAddress;
         address[] memory curr = new address[](5);
@@ -251,13 +251,7 @@ contract Lottery is
             address(this),
             0
         );
-        console.log(block.timestamp);
-        console.log(
-            "Balance",
-            IERC20(0x028171bCA77440897B824Ca71D1c56caC55b68A3).balanceOf(
-                address(this)
-            )
-        );
+
         emit StartLottery(
             lotteryId,
             lotteryStatus,
@@ -274,7 +268,7 @@ contract Lottery is
         require(
             lotteryStatus == LotteryStatus.STARTED &&
                 lotteryTime < block.timestamp,
-            "Lottery is not started"
+            "Not applicable to close"
         );
         require(winnerNumber > 0, "RANDOM_NUMBER_ERROR");
 
@@ -286,13 +280,6 @@ contract Lottery is
         lotteryTime = 0;
         lotteryStatus = LotteryStatus.CLOSE;
         lott.isClose = true;
-
-        console.log(
-            "Balance Withdraw",
-            IERC20(0x028171bCA77440897B824Ca71D1c56caC55b68A3).balanceOf(
-                address(this)
-            )
-        );
 
         uint256 balancePool = ILendingPool(lott.poolAddress).withdraw(
             lott.tokenPoolAddress,
@@ -327,10 +314,11 @@ contract Lottery is
         require(lotteries[_lotteryId].isClose, "Lottery is not close");
         require(msg.sender != address(0), "Invalid user");
 
-        Player memory player = lotteryRecord[_lotteryId][_ticketId.sub(1)];
+        Player storage player = lotteryRecord[_lotteryId][_ticketId.sub(1)];
 
         require(msg.sender == player.player, "Invalid user ticket");
-        console.log(block.timestamp);
+        require(!player.claim, "Prize claimed");
+        player.claim = true;
 
         if (msg.sender != lotteries[_lotteryId].winner) {
             IERC20(lotteries[_lotteryId].tokenPoolAddress).safeTransferFrom(
