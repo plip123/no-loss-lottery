@@ -42,8 +42,7 @@ contract Lottery is
         bool claim;
     }
 
-    IUniswapV2Router internal constant swapper =
-        IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    IUniswapV2Router internal swapper;
     LotteryStatus public lotteryStatus;
     uint256 public lotteryId;
     uint256 internal lotteryTime;
@@ -96,6 +95,8 @@ contract Lottery is
             vrfCoordinator, // VRF Coordinator
             0x514910771AF9Ca656af840dff83E8264EcF986CA // LINK Token
         );
+
+        swapper = IUniswapV2Router(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
 
         lotteryAdmin = msg.sender;
         recipientAddr = _recipient;
